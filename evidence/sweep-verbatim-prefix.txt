@@ -1,0 +1,22 @@
+# Startup sweep, Jan 0.8.5-rc3-beta on Windows 11
+# Four fake "llama-server.exe" processes were started before launching Jan (copies of node.exe idling, so the
+# process name and argv are what the sweep sees). All four have a parent that is NOT a Jan process.
+#
+# BEFORE launching Jan (argv after "--", pid redacted to a letter):
+#  A  --models-preset C:\Users\USER\AppData\Roaming\Jan-nightly\data\llamacpp\router.preset.ini --port 1337
+#  B  --models-preset \\?\C:\Users\USER\AppData\Roaming\Jan-nightly\data\llamacpp\router.preset.ini --port 1339   <- 0.8.4 passes this form
+#  C  -m other.gguf
+#  D  --models-preset <another data folder>\llamacpp\router.preset.ini --port 1338
+#
+# AFTER Jan finished starting (liveness checked by pid):
+#  A  killed        expected: killed
+#  B  STILL RUNNING expected: killed          <- the bug
+#  C  still running expected: left alone
+#  D  still running expected: left alone
+#
+# Jan app.log, the only sweep lines:
+[2026-10-07][07:56:20][app_lib::core::system::orphans][WARN] Killing llama-server left running by a previous Jan: pid 46972, parent Some(Pid(44464))
+[2026-10-07][07:56:20][app_lib][WARN] Reaped 1 engine process(es) left by a previous Jan
+
+# Jan 0.8.4 (stable, installed from the release) logs its own router argv on 2026-10-05 (user name redacted, rest of argv elided):
+[2026-10-05][10:29:27][tauri_plugin_llamacpp::router][INFO] Router argv: ["--models-preset", "\\\\?\\C:\\Users\\USER\\AppData\\Roaming\\Jan\\data\\llamacpp\\router.preset.ini", ...]

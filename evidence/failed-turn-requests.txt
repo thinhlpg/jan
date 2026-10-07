@@ -1,0 +1,11 @@
+# Requests received by a local OpenAI-compatible mock (port 18950), Jan 0.8.5-rc3-beta, Windows 11
+# The mock returns HTTP 500 for any prompt containing FORCE_ERR and echoes everything else.
+# Jan sends: (1) "FORCE_ERR what is the capital of France"  (2) "RECOVERED say hi"  - two separate sends.
+
+t_rel   req  roles  last user message as received by the model
++  0.0s  #1   su     "FORCE_ERR what is the capital of France"
++  2.0s  #2   su     "FORCE_ERR what is the capital of France"
++  6.0s  #3   su     "FORCE_ERR what is the capital of France"
++ 12.3s  #4   su     "FORCE_ERR what is the capital of France\n\nRECOVERED say hi"
+
+# roles: s=system u=user a=assistant
