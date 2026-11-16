@@ -11,6 +11,9 @@ window.__ModuleLoader__.load({
     // Present only inside the app window; a plain browser tab has no window to drive.
     const tauri = window.__TAURI_INTERNALS__
     const win = (cmd) => tauri.invoke(`plugin:window|${cmd}`, { label: 'main' })
+    // macOS keeps its native traffic lights (titleBarStyle Overlay); only the
+    // frameless Windows/Linux window needs our own buttons.
+    const mac = /Mac/.test(navigator.platform || navigator.userAgent)
 
     // Jan's blue accent, the app's default when the settings carry none.
     const look = shell.look ?? { primary: '#456BDE', sidebar: { light: '#C4D0F3', dark: '#0F2157' } }
@@ -99,6 +102,9 @@ window.__ModuleLoader__.load({
     margin: 0 0 8px;
   }
   html[data-ow-shell] [data-slot='sidebar'] [data-slot='sidebar.brand.mark']:has(.ow-sidebar-mark) { display: none; }
+  /* Clear the native traffic lights (tauri.macos.conf.json trafficLightPosition). */
+  html[data-ow-shell][data-ow-mac] [data-slot='sidebar'] > div > :has([data-slot='sidebar.brand.name']) { padding-left: 64px; }
+  html[data-ow-shell][data-ow-mac]:has([data-sidebar-collapsed]) [data-slot='sidebar'] [data-sidebar-toggle] { left: 84px; }
   html[data-ow-shell] [data-slot='sidebar.brand.name'] .ow-name { font-size: 14px; }
   html[data-ow-shell] [data-slot='sidebar'] [data-sidebar-toggle] {
     position: relative;
@@ -164,7 +170,7 @@ html[data-ow-shell][data-windows-titlebar] [data-slot='root'] > :has(> [data-she
       }, [])
       return h('div', { className: 'ow-titlebar' },
         h('div', { className: 'ow-drag', 'data-tauri-drag-region': '' }),
-        h('div', { className: 'ow-controls' },
+        !mac && h('div', { className: 'ow-controls' },
           h('button', { type: 'button', 'aria-label': 'Minimize', onClick: () => win('minimize') }, svg(h('path', { d: 'M0 5h10' }))),
           h('button', { type: 'button', 'aria-label': maximized ? 'Restore' : 'Maximize', onClick: () => win('toggle_maximize').then(sync) },
             svg(maximized ? h('path', { d: 'M2.5 2.5V.5h7v7h-2M.5 2.5h7v7h-7z' }) : h('rect', { x: 0.5, y: 0.5, width: 9, height: 9 }))),
@@ -250,9 +256,11 @@ html[data-ow-shell][data-windows-titlebar] [data-slot='root'] > :has(> [data-she
           const html = document.documentElement
           html.setAttribute('data-windows-titlebar', '')
           html.style.setProperty('--dsh-windows-titlebar-height', '40px')
+          if (mac) html.setAttribute('data-ow-mac', '')
           ctx.effect(() => () => {
             html.removeAttribute('data-windows-titlebar')
             html.style.removeProperty('--dsh-windows-titlebar-height')
+            html.removeAttribute('data-ow-mac')
           }, 'open-waifu-shell: title row')
           ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'ow-titlebar', order: 100 }, TitleBar))
         }
