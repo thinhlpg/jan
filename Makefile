@@ -6,7 +6,7 @@
 #   make clean      delete build output and caches
 #
 # Engine backends: JAN_ENGINE_VARIANT=cpu|vulkan|metal|cuda12|cuda13|hip, joined
-# by `-` (default vulkan). CUDA/HIP builds also get vulkan as a runtime fallback
+# by `-` (default metal on macOS, vulkan elsewhere). CUDA/HIP builds also get vulkan as a runtime fallback
 # unless JAN_ENGINE_VULKAN_FALLBACK=0. JAN_ENGINE_JOBS limits engine parallelism.
 
 ifeq ($(OS),Windows_NT)
@@ -80,7 +80,12 @@ test-rust: stub-resources
 
 COMMA := ,
 SPACE := $(subst ,, )
+# macOS has no Vulkan SDK by default, and the app bundle requires the worker.
+ifeq ($(DETECTED_OS),Darwin)
+JAN_ENGINE_VARIANT ?= metal
+else
 JAN_ENGINE_VARIANT ?= vulkan
+endif
 JAN_ENGINE_VULKAN_FALLBACK ?= 1
 JAN_ENGINE_CUDA_ARCHS ?=
 JAN_ENGINE_HIP_TARGETS ?=
