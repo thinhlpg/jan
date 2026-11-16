@@ -174,12 +174,34 @@ pub async fn dsh_web_start<R: Runtime>(
     use tauri::Manager;
     let url = super::web::start(&app, &state.dsh_web, &data_dir(&app), setup).await?;
     let url = tauri::Url::parse(&url).map_err(|e| e.to_string())?;
-    // From here, not `location` in the page: DSH's launch URL sets a
-    // SameSite=Strict cookie and redirects, and a chain the Jan origin starts
-    // is cross-site, so the cookie would be withheld and the shell answer 401.
-    // An app-initiated navigation has no initiating site.
-    app.get_webview_window(super::web::WINDOW_LABEL)
-        .ok_or("no main window")?
-        .navigate(url)
-        .map_err(|e| e.to_string())
+    let window = app
+        .get_webview_window(super::web::WINDOW_LABEL)
+        .ok_or("no main window")?;
+    // DSH's launch URL answers with a SameSite=Strict session cookie and a
+    // redirect. WKWebView treats a navigation away from the Jan origin as
+    // cross-site, so it withholds that cookie and the shell answers 401.
+    // Exchange the token here and hand the cookie to the webview as Lax,
+    // which top-level navigations always carry; the host checks only its value.
+    let resp = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|e| e.to_string())?
+        .get(url.clone())
+        .send()
+        .await
+        .map_err(|e| format!("DSH sign-in failed: {e}"))?;
+    let set_cookie = resp
+        .headers()
+        .get(reqwest::header::SET_COOKIE)
+        .and_then(|v| v.to_str().ok())
+        .ok_or("DSH did not issue a session cookie")?;
+    let mut cookie =
+        tauri::webview::cookie::Cookie::parse(set_cookie.to_string()).map_err(|e| e.to_string())?;
+    cookie.set_domain(url.host_str().unwrap_or("127.0.0.1").to_string());
+    cookie.set_path("/");
+    cookie.set_same_site(tauri::webview::cookie::SameSite::Lax);
+    window.set_cookie(cookie).map_err(|e| e.to_string())?;
+    let mut clean = url;
+    clean.set_query(None);
+    window.navigate(clean).map_err(|e| e.to_string())
 }
