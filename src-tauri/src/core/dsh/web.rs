@@ -65,15 +65,23 @@ fn cli() -> Result<PathBuf, String> {
     if let Some(path) = std::env::var_os("OW_DSH_CLI") {
         return Ok(PathBuf::from(path));
     }
-    let global = if cfg!(windows) {
-        std::env::var_os("APPDATA").map(|d| PathBuf::from(d).join("npm/node_modules"))
+    let globals: Vec<PathBuf> = if cfg!(windows) {
+        std::env::var_os("APPDATA")
+            .map(|d| PathBuf::from(d).join("npm/node_modules"))
+            .into_iter()
+            .collect()
     } else {
-        // npm's default prefix on macOS (Homebrew and the official installer).
-        Some(PathBuf::from("/usr/local/lib/node_modules"))
+        // npm's default prefixes: the official installer, then Homebrew on
+        // Apple Silicon (`/opt/homebrew`).
+        vec![
+            PathBuf::from("/usr/local/lib/node_modules"),
+            PathBuf::from("/opt/homebrew/lib/node_modules"),
+        ]
     };
-    global
+    globals
+        .into_iter()
         .map(|d| d.join("@deepseek-ai/dsh/lib/bin.js"))
-        .filter(|p| p.is_file())
+        .find(|p| p.is_file())
         .ok_or_else(|| "DSH is not installed; run `npm i -g @deepseek-ai/dsh`".to_string())
 }
 
